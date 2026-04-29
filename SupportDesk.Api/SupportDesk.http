@@ -1,0 +1,6 @@
+@SupportDesk_HostAddress = http://localhost:5042
+
+GET {{SupportDesk_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

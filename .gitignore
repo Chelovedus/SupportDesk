@@ -1,0 +1,31 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+
+# Rider IDE
+.idea/
+*.sln.iml
+
+# Rider HTTP logs
+.idea/.idea.*/httpRequests/
+*.200.json
+http-requests-log.http
+http-client.cookies
+
+# User settings
+*.user
+*.suo
+workspace.xml
+vcs.xml
+indexLayout.xml
+projectSettingsUpdater.xml
+
+# Build outputs (у вас уже есть, но проверьте)
+bin/
+obj/
+
+# Packages
+packages/
