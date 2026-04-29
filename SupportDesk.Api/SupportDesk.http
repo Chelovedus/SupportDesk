@@ -1,6 +1,7 @@
-@SupportDesk_HostAddress = http://localhost:5042
+### Root
+@SupportDesk_Host = http://localhost:5042/
 
-GET {{SupportDesk_HostAddress}}/weatherforecast/
+
+### Health
+GET {{SupportDesk_Host}}/api/health
 Accept: application/json
-
-###
