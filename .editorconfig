@@ -1,0 +1,5 @@
+[*.cs]
+# Primary constructors
+csharp_style_prefer_primary_constructors = false 
+dotnet_diagnostic.IDE0290.severity = none
+resharper_convert_to_primary_constructor_highlighting = none
