@@ -31,6 +31,9 @@ public class Ticket
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? ResolvedAt { get; private set; }
     public DateTimeOffset? ClosedAt { get; private set; }
+    
+    public IReadOnlyCollection<TicketHistoryItem> History => _history.AsReadOnly();
+    public IReadOnlyCollection<TicketComment> Comments => _comments.AsReadOnly();
 
     private readonly List<TicketHistoryItem> _history = new();
     private readonly List<TicketComment> _comments = new();
@@ -43,11 +46,11 @@ public class Ticket
         var now = DateTimeOffset.UtcNow;
         AssignedAgentId = agentId;
         ChangeStatus(
-            TicketStatus.Assigned,
-            actorId,
-            "TicketAssigned",
-            $"Assigned to agent {agentId}",
-            now);
+            newStatus: TicketStatus.Assigned,
+            actorId: actorId,
+            eventType: "TicketAssigned",
+            description: $"Assigned to agent {agentId}",
+            now: now);
     }
 
     public void StartProgress(int actorId)
@@ -60,11 +63,11 @@ public class Ticket
         
         var now = DateTimeOffset.UtcNow;
         ChangeStatus(
-            TicketStatus.InProgress,
-            actorId,
-            "TicketInProgress",
-            $"In progress for actor {actorId}",
-            now);
+            newStatus: TicketStatus.InProgress,
+            actorId: actorId,
+            eventType: "TicketInProgress",
+            description: $"In progress for actor {actorId}",
+            now: now);
     }
 
     public void Resolve(int actorId, string resolution)
@@ -77,11 +80,11 @@ public class Ticket
         var now = DateTimeOffset.UtcNow;
         ResolvedAt = now;
         ChangeStatus(
-            TicketStatus.Resolved,
-            actorId,
-            "TicketResolved",
-            $"Resolved to actor {actorId}. Resolution: {resolution}",
-            now);
+            newStatus: TicketStatus.Resolved,
+            actorId: actorId,
+            eventType: "TicketResolved",
+            description: $"Resolved to actor {actorId}. Resolution: {resolution}",
+            now: now);
     }
 
     public void Close(int actorId)
@@ -92,11 +95,11 @@ public class Ticket
         var now = DateTimeOffset.UtcNow;
         ClosedAt = now;
         ChangeStatus(
-            TicketStatus.Closed,
-            actorId,
-            "TicketClosed",
-            $"Closed by actor {actorId}",
-            now);
+            newStatus: TicketStatus.Closed,
+            actorId: actorId,
+            eventType: "TicketClosed",
+            description: $"Closed by actor {actorId}",
+            now: now);
     }
 
     public void Cancel(int actorId, string reason)
@@ -108,18 +111,24 @@ public class Ticket
         
         var now = DateTimeOffset.UtcNow;
         ChangeStatus(
-            TicketStatus.Cancelled,
-            actorId,
-            "TicketCancelled",
-            $"Cancelled by actor {actorId}. Reason: {reason}",
-            now);
+            newStatus: TicketStatus.Cancelled,
+            actorId: actorId,
+            eventType: "TicketCancelled",
+            description: $"Cancelled by actor {actorId}. Reason: {reason}",
+            now: now);
     }
     public void AddComment(int authorId, string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new DomainException("Comment cannot be empty.");
         
-        UpdatedAt = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+        _comments.Add(new TicketComment(
+            ticketId: Id,
+            authorUserId: authorId,
+            commentText: text,
+            createdAt: now));
+        UpdatedAt = now;
     }
 
     private void ChangeStatus(
@@ -133,7 +142,14 @@ public class Ticket
         Status = newStatus;
         UpdatedAt = now;
         
-        _history.Add(new TicketHistoryItem(eventType, description, Id, actorId, oldStatus.ToString(), newStatus.ToString(), now));
+        _history.Add(new TicketHistoryItem(
+            action: eventType,
+            details: description,
+            ticketId: Id,
+            actorUserId: actorId,
+            oldStatus: oldStatus.ToString(),
+            newStatus: newStatus.ToString(),
+            createdAt: now));
     }
 
 
