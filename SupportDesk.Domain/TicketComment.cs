@@ -13,9 +13,11 @@ public class TicketComment
         if (string.IsNullOrWhiteSpace(commentText))
             throw new DomainException("Comment cannot be empty.");
         
+        var normalizedText = commentText.Trim();
+        
         TicketId = ticketId;
         AuthorUserId = authorUserId;
-        CommentText = commentText;
+        CommentText = normalizedText;
         CreatedAt = createdAt;
     }
 }
