@@ -1,9 +1,11 @@
 using Microsoft.OpenApi;
+using SupportDesk.Application.Tickets;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSingleton<ITicketService, InMemoryTicketService>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo

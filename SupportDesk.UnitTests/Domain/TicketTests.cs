@@ -118,7 +118,7 @@ public class TicketTests
     private static Ticket CreateTicket()
     {
         var ticket = new Ticket(
-            id: 2,
+            id: 1,
             title: "I cannot login",
             description: "Exception: password incorrect. Help me!!",
             createdByUserId: 1,

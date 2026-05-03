@@ -2,7 +2,7 @@ namespace SupportDesk.Domain;
 
 public class Ticket
 {
-    public Ticket(string title, string description, TicketPriority priority, int createdByUserId)
+    public Ticket(int id, string title, string description, TicketPriority priority, int createdByUserId)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new DomainException("Title cannot be empty.");
@@ -10,7 +10,8 @@ public class Ticket
             throw new DomainException("Description cannot be empty.");
         
         var now = DateTimeOffset.UtcNow;
-        
+
+        Id = id;
         Title = title;
         Description = description;
         Priority = priority;
@@ -117,18 +118,25 @@ public class Ticket
             description: $"Cancelled by actor {actorId}. Reason: {reason}",
             now: now);
     }
-    public void AddComment(int authorId, string text)
+    
+    public TicketComment AddComment(int commentId, int authorId, string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new DomainException("Comment cannot be empty.");
         
         var now = DateTimeOffset.UtcNow;
-        _comments.Add(new TicketComment(
+
+        var comment = new TicketComment(
+            commentId: commentId,
             ticketId: Id,
             authorUserId: authorId,
             commentText: text,
-            createdAt: now));
+            createdAt: now);
+        
+        _comments.Add(comment);
         UpdatedAt = now;
+
+        return comment;
     }
 
     private void ChangeStatus(

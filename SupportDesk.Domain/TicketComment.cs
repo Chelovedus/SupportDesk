@@ -8,13 +8,14 @@ public class TicketComment
     public string CommentText { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     
-    public TicketComment(int ticketId, int authorUserId, string commentText, DateTimeOffset createdAt)
+    public TicketComment(int commentId, int ticketId, int authorUserId, string commentText, DateTimeOffset createdAt)
     {
         if (string.IsNullOrWhiteSpace(commentText))
             throw new DomainException("Comment cannot be empty.");
         
         var normalizedText = commentText.Trim();
         
+        Id = commentId;
         TicketId = ticketId;
         AuthorUserId = authorUserId;
         CommentText = normalizedText;
