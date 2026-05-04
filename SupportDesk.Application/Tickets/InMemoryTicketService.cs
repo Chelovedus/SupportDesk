@@ -10,11 +10,10 @@ public sealed class InMemoryTicketService : ITicketService
     private int _nextTicketId = 1;
     private readonly Dictionary<int, int> _nextCommentIds = new();
     
-    public TicketResponse CreateTicket(CreateTicketRequest request)
+    public Task<TicketResponse> CreateTicket(CreateTicketRequest request)
     {
         var id = _nextTicketId++;
         var ticket = new Ticket(
-            id: id,
             title: request.Title,
             description: request.Description,
             priority: request.Priority,
@@ -22,85 +21,88 @@ public sealed class InMemoryTicketService : ITicketService
         
         _tickets.Add(id, ticket);
 
-        return MapToResponse(ticket);
+        return Task.FromResult<TicketResponse>(MapToResponse(ticket));
     }
     
-    public TicketResponse? GetTicketById(int ticketId)
+    public Task<TicketResponse?> GetTicketById(int ticketId)
     {
-        var ticket = FindTicket(ticketId);
-        return ticket is not null ? MapToResponse(ticket) : null;
+        if (!_tickets.TryGetValue(ticketId, out var ticket))
+            return Task.FromResult<TicketResponse?>(null);
+        
+        return Task.FromResult<TicketResponse?>(MapToResponse(ticket));
     }
 
-    public IReadOnlyCollection<TicketListItemResponse> GetAllTickets()
+    public Task<IReadOnlyCollection<TicketListItemResponse>> GetAllTickets()
     {
-        return _tickets.Values.Select(MapToListItemResponse).ToList();
+        return Task.FromResult<IReadOnlyCollection<TicketListItemResponse>>(_tickets.Values
+            .Select(MapToListItemResponse).ToList());
     }
 
-    public TicketResponse? AssignTicket(int ticketId, AssignTicketRequest request)
+    public Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.AssignTo(request.AgentId, actorId: request.ActorId));
     }
 
-    public TicketResponse? StartProgressTicket(int ticketId, StartProgressRequest request)
+    public Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.StartProgress(actorId: request.ActorId));
     }
 
-    public TicketResponse? ResolveTicket(int ticketId, ResolveTicketRequest request)
+    public Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Resolve(actorId: request.ActorId, resolution: request.Resolution));
     }
 
-    public TicketResponse? CloseTicket(int ticketId, CloseTicketRequest request)
+    public Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Close(actorId: request.ActorId));
     }
 
-    public TicketResponse? CancelTicket(int ticketId, CancelTicketRequest request)
+    public Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Cancel(actorId: request.ActorId, reason: request.Reason));
     }
 
-    public TicketCommentResponse? AddComment(int ticketId, AddCommentRequest request)
+    public Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)
-            return null;
+            return Task.FromResult<TicketCommentResponse?>(null);
         
         var commentId = GetNextCommentId(ticketId);
-        var comment = ticket.AddComment(commentId: commentId, authorId: request.AuthorUserId, text: request.CommentText);
+        var comment = ticket.AddComment(authorId: request.AuthorUserId, text: request.CommentText);
 
-        return MapToCommentResponse(comment);
+        return Task.FromResult<TicketCommentResponse?>(MapToCommentResponse(comment));
     }
 
-    public IReadOnlyCollection<TicketCommentResponse>? GetComments(int ticketId)
+    public Task<IReadOnlyCollection<TicketCommentResponse>?> GetComments(int ticketId)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)
-            return null;
+            return Task.FromResult<IReadOnlyCollection<TicketCommentResponse>?>(null);
 
         var comments = ticket.Comments.Select(MapToCommentResponse).ToList();
-        return comments;
+        return Task.FromResult<IReadOnlyCollection<TicketCommentResponse>?>(comments);
     }
 
-    public IReadOnlyCollection<TicketHistoryItemResponse>? GetHistory(int ticketId)
+    public Task<IReadOnlyCollection<TicketHistoryItemResponse>?> GetHistory(int ticketId)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)
-            return null;
+            return Task.FromResult<IReadOnlyCollection<TicketHistoryItemResponse>?>(null);
 
         var history = ticket.History.Select(MapToHistoryResponse).ToList();
-        return history;
+        return Task.FromResult<IReadOnlyCollection<TicketHistoryItemResponse>?>(history);
     }
 
     private Ticket? FindTicket(int ticketId)
@@ -118,16 +120,16 @@ public sealed class InMemoryTicketService : ITicketService
         return nextId;
     }
 
-    private TicketResponse? ChangeTicket(int ticketId, Action<Ticket> change)
+    private Task<TicketResponse?> ChangeTicket(int ticketId, Action<Ticket> change)
     {
         var ticket = FindTicket(ticketId);
 
         if (ticket is null)
-            return null;
+            return Task.FromResult<TicketResponse?>(null);
         
         change(ticket);
         
-        return MapToResponse(ticket);
+        return Task.FromResult<TicketResponse?>(MapToResponse(ticket));
     }
     
     private static TicketListItemResponse MapToListItemResponse(Ticket ticket)
