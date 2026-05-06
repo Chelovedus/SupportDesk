@@ -45,5 +45,17 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasMany(ticket => ticket.Comments)
             .WithOne()
             .HasForeignKey(comment => comment.TicketId);
+
+        builder.HasIndex(ticket => ticket.Status)
+            .HasDatabaseName("IX_tickets_status");
+        builder.HasIndex(ticket => ticket.Priority)
+            .HasDatabaseName("IX_tickets_priority");
+        builder.HasIndex(ticket => ticket.CreatedAt)
+            .HasDatabaseName("IX_tickets_created_at");
+        builder.HasIndex(ticket => ticket.CreatedByUserId)
+            .HasDatabaseName("IX_tickets_created_by_user_id");
+        builder.HasIndex(ticket => ticket.AssignedAgentId)
+            .HasDatabaseName("IX_tickets_assigned_agent_id");
+        
     }
 }

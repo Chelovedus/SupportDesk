@@ -1,7 +1,182 @@
 ### Root
 @SupportDesk_Host = http://localhost:5042/
+@ticketId = 1
 
 
 ### Health
 GET {{SupportDesk_Host}}/api/health
 Accept: application/json
+
+
+### Create ticket
+POST {{SupportDesk_Host}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "Cannot access internal portal",
+  "description": "User cannot log in to the internal company portal.",
+  "priority": "High",
+  "createdByUserId": 1
+}
+
+
+### Get ticket by id
+GET {{SupportDesk_Host}}/api/tickets/{{ticketId}}
+Accept: application/json
+
+
+### Ticket list
+GET {{SupportDesk_Host}}/api/tickets
+Accept: application/json
+
+
+### List tickets: first page, 5 tickets
+GET {{SupportDesk_Host}}/api/tickets?page=1&pageSize=5
+Accept: application/json
+
+
+### List tickets: second page, 5 tickets
+GET {{SupportDesk_Host}}/api/tickets?page=2&pageSize=5
+Accept: application/json
+
+
+### List tickets by status
+GET {{SupportDesk_Host}}/api/tickets?status=New
+Accept: application/json
+
+
+### List tickets by multiple statuses
+GET {{SupportDesk_Host}}/api/tickets?status=New&status=InProgress
+Accept: application/json
+
+
+### List tickets by priority
+GET {{SupportDesk_Host}}/api/tickets?priority=High
+Accept: application/json
+
+
+### List tickets by status and priority
+GET {{SupportDesk_Host}}/api/tickets?status=InProgress&priority=High
+Accept: application/json
+
+
+### List tickets sorted by created date ascending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=CreatedAt&sortDirection=Ascending
+Accept: application/json
+
+
+### List tickets sorted by created date descending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=CreatedAt&sortDirection=Descending
+Accept: application/json
+
+
+### List tickets sorted by priority ascending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=Priority&sortDirection=Ascending
+Accept: application/json
+
+
+### List tickets sorted by priority descending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=Priority&sortDirection=Descending
+Accept: application/json
+
+
+### List tickets sorted by status ascending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=Status&sortDirection=Ascending
+Accept: application/json
+
+
+### List tickets sorted by status descending
+GET {{SupportDesk_Host}}/api/tickets?sortBy=Status&sortDirection=Descending
+Accept: application/json
+
+
+### List tickets with filters, sorting and pagination
+GET {{SupportDesk_Host}}/api/tickets?status=New&status=InProgress&priority=High&page=1&pageSize=20&sortBy=CreatedAt&sortDirection=Descending
+Accept: application/json
+
+
+### Bad request exception - page must be >= 1
+GET {{SupportDesk_Host}}/api/tickets?page=0
+Accept: application/json
+
+
+### Bad request 400 exception - pageSize must be >= 1
+GET {{SupportDesk_Host}}/api/tickets?pageSize=0
+Accept: application/json
+
+
+### Bad request 400 exception - pageSize must be <= 100
+GET {{SupportDesk_Host}}/api/tickets?pageSize=101
+Accept: application/json
+
+
+### Assign ticket
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/assign
+Content-Type: application/json
+
+{
+  "agentId": 2,
+  "actorId": 2
+}
+
+
+### Start ticket progress
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/start
+Content-Type: application/json
+
+{
+  "actorId": 2
+}
+
+
+### Add comment
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/comments
+Content-Type: application/json
+
+{
+  "authorUserId": 2,
+  "commentText": "I started investigating the issue!"
+}
+
+
+### Get ticket comments
+GET {{SupportDesk_Host}}/api/tickets/{{ticketId}}/comments
+Accept: application/json
+
+
+### Resolve ticket
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/resolve
+Content-Type: application/json
+
+{
+  "actorId": 2,
+  "resolution": "Password reset and access restored."
+}
+
+
+### Close ticket
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/close
+Content-Type: application/json
+
+{
+  "actorId": 1
+}
+
+
+### Cancel ticket
+POST {{SupportDesk_Host}}/api/tickets/{{ticketId}}/cancel
+Content-Type: application/json
+
+{
+  "actorId": 1,
+  "reason": "Ticket was created by mistake."
+}
+
+
+### Get ticket history
+GET {{SupportDesk_Host}}/api/tickets/{{ticketId}}/history
+Accept: application/json
+
+
+### sdfsd
+GET http://localhost:5042/api/tickets?status=New&status=InProgress&priority=High&page=1&pageSize=20&sortBy=CreatedAt&sortDirection=Descending

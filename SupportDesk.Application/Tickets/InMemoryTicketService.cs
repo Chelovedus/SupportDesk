@@ -10,7 +10,7 @@ public sealed class InMemoryTicketService : ITicketService
     private int _nextTicketId = 1;
     private readonly Dictionary<int, int> _nextCommentIds = new();
     
-    public Task<TicketResponse> CreateTicket(CreateTicketRequest request)
+    public Task<TicketResponse> CreateTicket(CreateTicketRequest request, CancellationToken cancellationToken)
     {
         var id = _nextTicketId++;
         var ticket = new Ticket(
@@ -24,7 +24,7 @@ public sealed class InMemoryTicketService : ITicketService
         return Task.FromResult<TicketResponse>(MapToResponse(ticket));
     }
     
-    public Task<TicketResponse?> GetTicketById(int ticketId)
+    public Task<TicketResponse?> GetTicketById(int ticketId, CancellationToken cancellationToken)
     {
         if (!_tickets.TryGetValue(ticketId, out var ticket))
             return Task.FromResult<TicketResponse?>(null);
@@ -32,48 +32,106 @@ public sealed class InMemoryTicketService : ITicketService
         return Task.FromResult<TicketResponse?>(MapToResponse(ticket));
     }
 
-    public Task<IReadOnlyCollection<TicketListItemResponse>> GetAllTickets()
+    public Task<PagedResponse<TicketListItemResponse>> GetAllTickets(
+        TicketSearchRequest request,
+        CancellationToken cancellationToken)
     {
-        return Task.FromResult<IReadOnlyCollection<TicketListItemResponse>>(_tickets.Values
-            .Select(MapToListItemResponse).ToList());
+        if (request.Page < 1)
+            throw new DomainException("Page must be greater or equal to 1.");
+
+        if (request.PageSize < 1 || request.PageSize > 100)
+            throw new DomainException("Page size must be between 1 and 100.");
+
+        IEnumerable<Ticket> query = _tickets.Values;
+
+        if (request.Status is { Length: > 0 })
+        {
+            query = query.Where(ticket => request.Status.Contains(ticket.Status));
+        }
+
+        if (request.Priority is not null)
+        {
+            query = query.Where(ticket => ticket.Priority == request.Priority.Value);
+        }
+
+        query = (request.SortBy, request.SortDirection) switch
+        {
+            (TicketSortBy.CreatedAt, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.CreatedAt),
+
+            (TicketSortBy.CreatedAt, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.CreatedAt),
+
+            (TicketSortBy.Priority, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.Priority),
+
+            (TicketSortBy.Priority, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.Priority),
+
+            (TicketSortBy.Status, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.Status),
+
+            (TicketSortBy.Status, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.Status),
+
+            _ => query.OrderByDescending(ticket => ticket.CreatedAt)
+        };
+
+        var totalCount = query.Count();
+
+        var items = query
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(MapToListItemResponse)
+            .ToList();
+
+        var response = new PagedResponse<TicketListItemResponse>
+        {
+            Items = items,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalCount = totalCount
+        };
+
+        return Task.FromResult(response);
     }
 
-    public Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request)
+    public Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.AssignTo(request.AgentId, actorId: request.ActorId));
     }
 
-    public Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request)
+    public Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request, CancellationToken cancellationToken)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.StartProgress(actorId: request.ActorId));
     }
 
-    public Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request)
+    public Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request, CancellationToken cancellationToken)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Resolve(actorId: request.ActorId, resolution: request.Resolution));
     }
 
-    public Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request)
+    public Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request, CancellationToken cancellationToken)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Close(actorId: request.ActorId));
     }
 
-    public Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request)
+    public Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request, CancellationToken cancellationToken)
     {
         return ChangeTicket(
             ticketId: ticketId,
             change: ticket => ticket.Cancel(actorId: request.ActorId, reason: request.Reason));
     }
 
-    public Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request)
+    public Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request, CancellationToken cancellationToken)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)
@@ -85,7 +143,7 @@ public sealed class InMemoryTicketService : ITicketService
         return Task.FromResult<TicketCommentResponse?>(MapToCommentResponse(comment));
     }
 
-    public Task<IReadOnlyCollection<TicketCommentResponse>?> GetComments(int ticketId)
+    public Task<IReadOnlyCollection<TicketCommentResponse>?> GetComments(int ticketId, CancellationToken cancellationToken)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)
@@ -95,7 +153,7 @@ public sealed class InMemoryTicketService : ITicketService
         return Task.FromResult<IReadOnlyCollection<TicketCommentResponse>?>(comments);
     }
 
-    public Task<IReadOnlyCollection<TicketHistoryItemResponse>?> GetHistory(int ticketId)
+    public Task<IReadOnlyCollection<TicketHistoryItemResponse>?> GetHistory(int ticketId, CancellationToken cancellationToken)
     {
         var ticket = FindTicket(ticketId);
         if (ticket is null)

@@ -15,7 +15,7 @@ public class EfTicketService : ITicketService
         _dbContext = dbContext;
     }
 
-    public async Task<TicketResponse> CreateTicket(CreateTicketRequest request)
+    public async Task<TicketResponse> CreateTicket(CreateTicketRequest request, CancellationToken cancellationToken)
     {
         var ticket = new Ticket(
             title: request.Title,
@@ -24,14 +24,14 @@ public class EfTicketService : ITicketService
             createdByUserId: request.CreatedByUserId);
 
         _dbContext.Tickets.Add(ticket);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketResponse?> GetTicketById(int ticketId)
+    public async Task<TicketResponse?> GetTicketById(int ticketId, CancellationToken cancellationToken)
     {
-        var ticket = _dbContext.Tickets.Find(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
@@ -39,10 +39,55 @@ public class EfTicketService : ITicketService
         return MapToResponse(ticket);
     }
 
-    public async Task<IReadOnlyCollection<TicketListItemResponse>> GetAllTickets()
+    public async Task<PagedResponse<TicketListItemResponse>> GetAllTickets(
+        TicketSearchRequest request,
+        CancellationToken cancellationToken)
     {
-        var tickets = await _dbContext.Tickets
+        if (request.Page < 1)
+            throw new DomainException("Page must be greater or equal to 1.");
+        if (request.PageSize < 1 || request.PageSize > 100)
+            throw new DomainException("Page size must be between 1 and 100.");
+
+        var query = _dbContext.Tickets
             .AsNoTracking()
+            .AsQueryable();
+
+        if (request.Status.Length > 0)
+            query = query.Where(ticket => request.Status.Contains(ticket.Status));
+
+        if (request.Priority is not null)
+            query = query.Where(ticket => ticket.Priority == request.Priority.Value);
+
+        var totalCount = await query.CountAsync(cancellationToken: cancellationToken);
+
+        query = (request.SortBy, request.SortDirection) switch
+        {
+            (TicketSortBy.CreatedAt, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.CreatedAt),
+
+            (TicketSortBy.CreatedAt, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.CreatedAt),
+
+            (TicketSortBy.Priority, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.Priority),
+
+            (TicketSortBy.Priority, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.Priority),
+
+            (TicketSortBy.Status, SortDirection.Ascending) =>
+                query.OrderBy(ticket => ticket.Status),
+
+            (TicketSortBy.Status, SortDirection.Descending) =>
+                query.OrderByDescending(ticket => ticket.Status),
+
+            _ => query.OrderByDescending(ticket => ticket.CreatedAt)
+        };
+
+        var skip = (request.Page - 1) * request.PageSize;
+
+        var items = await query
+            .Skip(skip)
+            .Take(request.PageSize)
             .Select(ticket => new TicketListItemResponse(
                 ticket.Id,
                 ticket.Title,
@@ -50,95 +95,101 @@ public class EfTicketService : ITicketService
                 ticket.Priority,
                 ticket.CreatedAt,
                 ticket.AssignedAgentId))
-            .ToListAsync();
+            .ToListAsync(cancellationToken: cancellationToken);
 
-        return tickets;
+        return new PagedResponse<TicketListItemResponse>()
+        {
+            Items = items,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalCount = totalCount
+        };
     }
 
-    public async Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request)
+    public async Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         ticket.AssignTo(agentId: request.AgentId, actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request)
+    public async Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         ticket.StartProgress(actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request)
+    public async Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         ticket.Resolve(actorId: request.ActorId, resolution: request.Resolution);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request)
+    public async Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         ticket.Close(actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request)
+    public async Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         ticket.Cancel(actorId: request.ActorId, reason: request.Reason);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
 
-    public async Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request)
+    public async Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(ticketId);
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
 
         if (ticket is null)
             return null;
 
         var comment = ticket.AddComment(authorId: request.AuthorUserId, text: request.CommentText);
         _dbContext.TicketComments.Add(comment);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
         
         return MapToCommentResponse(comment);
     }
 
-    public async Task<IReadOnlyCollection<TicketCommentResponse>?> GetComments(int ticketId)
+    public async Task<IReadOnlyCollection<TicketCommentResponse>?> GetComments(int ticketId, CancellationToken cancellationToken)
     {
         var ticketExists = await _dbContext.Tickets
             .AsNoTracking()
-            .AnyAsync(ticket => ticket.Id == ticketId);
+            .AnyAsync(ticket => ticket.Id == ticketId, cancellationToken: cancellationToken);
 
         if (!ticketExists)
             return null;
@@ -153,16 +204,16 @@ public class EfTicketService : ITicketService
                 authorUserId: comment.AuthorUserId,
                 commentText: comment.CommentText,
                 createdAt: comment.CreatedAt))
-            .ToListAsync();
+            .ToListAsync(cancellationToken: cancellationToken);
 
         return comments;
     }
 
-    public async Task<IReadOnlyCollection<TicketHistoryItemResponse>?> GetHistory(int ticketId)
+    public async Task<IReadOnlyCollection<TicketHistoryItemResponse>?> GetHistory(int ticketId, CancellationToken cancellationToken)
     {
         var ticketExists = await _dbContext.Tickets
             .AsNoTracking()
-            .AnyAsync(ticket => ticket.Id == ticketId);
+            .AnyAsync(ticket => ticket.Id == ticketId, cancellationToken: cancellationToken);
 
         if (!ticketExists)
             return null;
@@ -180,7 +231,7 @@ public class EfTicketService : ITicketService
                 newStatus: history.NewStatus,
                 createdAt: history.CreatedAt,
                 details: history.Details))
-            .ToListAsync();
+            .ToListAsync(cancellationToken: cancellationToken);
 
         return history;
     }
