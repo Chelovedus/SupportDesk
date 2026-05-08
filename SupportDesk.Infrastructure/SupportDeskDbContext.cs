@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SupportDesk.Domain;
+using SupportDesk.Domain.Users;
 using SupportDesk.Infrastructure.Configurations;
 
 namespace SupportDesk.Infrastructure;
@@ -12,6 +13,7 @@ public class SupportDeskDbContext : DbContext
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<TicketHistoryItem> TicketHistoryItems => Set<TicketHistoryItem>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -2,7 +2,13 @@ using System.Text.Json.Serialization;
 using Microsoft.OpenApi;
 using SupportDesk.Application.Tickets;
 using Microsoft.EntityFrameworkCore;
+using SupportDesk.Application.Auth;
+using SupportDesk.Application.Users;
 using SupportDesk.Infrastructure;
+using SupportDesk.Infrastructure.Auth;
+using SupportDesk.Infrastructure.Seed;
+using SupportDesk.Infrastructure.Tickets;
+using SupportDesk.Infrastructure.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +20,12 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<ITicketService, EfTicketService>();
+builder.Services.AddScoped<IUserReadRepository, EfUserReadRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPasswordHashService, AspNetCorePasswordHashService>();
+
+
+builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -41,6 +53,12 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
         options.RoutePrefix = string.Empty;
     });
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    await seeder.AddSeedUsersAsync();
 }
 
 app.MapControllers();

@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using SupportDesk.Application.Tickets;
 using SupportDesk.Contracts.Requests;
 using SupportDesk.Contracts.Responses;
 using SupportDesk.Domain;
-using SupportDesk.Infrastructure;
 
-namespace SupportDesk.Application.Tickets;
+namespace SupportDesk.Infrastructure.Tickets;
 
 public class EfTicketService : ITicketService
 {
