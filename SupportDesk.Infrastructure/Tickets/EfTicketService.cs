@@ -105,70 +105,45 @@ public class EfTicketService : ITicketService
             TotalCount = totalCount
         };
     }
-
-    public async Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
+    
+    public Task<TicketResponse?> AssignTicket(int ticketId, AssignTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
-
-        if (ticket is null)
-            return null;
-
-        ticket.AssignTo(agentId: request.AgentId, actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
-        
-        return MapToResponse(ticket);
+        return ExecuteTicketChangeAsync(
+            ticketId: ticketId,
+            cancellationToken: cancellationToken,
+            change: ticket => ticket.AssignTo(agentId: request.AgentId, actorId: request.ActorId));
     }
 
-    public async Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request, CancellationToken cancellationToken)
+    public Task<TicketResponse?> StartProgressTicket(int ticketId, StartProgressRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
-
-        if (ticket is null)
-            return null;
-
-        ticket.StartProgress(actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
-        
-        return MapToResponse(ticket);
+        return ExecuteTicketChangeAsync(
+            ticketId: ticketId,
+            cancellationToken: cancellationToken,
+            change: ticket => ticket.StartProgress(actorId: request.ActorId));
     }
 
-    public async Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request, CancellationToken cancellationToken)
+    public Task<TicketResponse?> ResolveTicket(int ticketId, ResolveTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
-
-        if (ticket is null)
-            return null;
-
-        ticket.Resolve(actorId: request.ActorId, resolution: request.Resolution);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
-        
-        return MapToResponse(ticket);
+        return ExecuteTicketChangeAsync(
+                    ticketId: ticketId,
+                    cancellationToken: cancellationToken,
+                    change: ticket => ticket.Resolve(actorId: request.ActorId, resolution: request.Resolution));
     }
 
-    public async Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request, CancellationToken cancellationToken)
+    public Task<TicketResponse?> CloseTicket(int ticketId, CloseTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
-
-        if (ticket is null)
-            return null;
-
-        ticket.Close(actorId: request.ActorId);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
-        
-        return MapToResponse(ticket);
+        return ExecuteTicketChangeAsync(
+            ticketId: ticketId,
+            cancellationToken: cancellationToken,
+            change: ticket => ticket.Close(actorId: request.ActorId));
     }
 
-    public async Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request, CancellationToken cancellationToken)
+    public Task<TicketResponse?> CancelTicket(int ticketId, CancelTicketRequest request, CancellationToken cancellationToken)
     {
-        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
-
-        if (ticket is null)
-            return null;
-
-        ticket.Cancel(actorId: request.ActorId, reason: request.Reason);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
-        
-        return MapToResponse(ticket);
+       return ExecuteTicketChangeAsync(
+            ticketId: ticketId,
+            cancellationToken: cancellationToken,
+            change: ticket => ticket.Cancel(actorId: request.ActorId, reason: request.Reason));
     }
 
     public async Task<TicketCommentResponse?> AddComment(int ticketId, AddCommentRequest request, CancellationToken cancellationToken)
@@ -234,6 +209,19 @@ public class EfTicketService : ITicketService
             .ToListAsync(cancellationToken: cancellationToken);
 
         return history;
+    }
+    
+    private async Task<TicketResponse?> ExecuteTicketChangeAsync(int ticketId, CancellationToken cancellationToken, Action<Ticket> change)
+    {
+        var ticket = await _dbContext.Tickets.FindAsync(keyValues: [ticketId], cancellationToken: cancellationToken);
+
+        if (ticket is null)
+            return null;
+
+        change(ticket);
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
+        
+        return MapToResponse(ticket);
     }
     
     private static TicketResponse MapToResponse(Ticket ticket)
