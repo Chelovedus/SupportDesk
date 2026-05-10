@@ -30,8 +30,8 @@ namespace SupportDesk.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AssignedAgentId")
-                        .HasColumnType("integer")
+                    b.Property<Guid?>("AssignedAgentId")
+                        .HasColumnType("uuid")
                         .HasColumnName("assigned_agent_id");
 
                     b.Property<DateTimeOffset?>("ClosedAt")
@@ -42,8 +42,8 @@ namespace SupportDesk.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
@@ -100,8 +100,8 @@ namespace SupportDesk.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AuthorUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("author_user_id");
 
                     b.Property<string>("CommentText")
@@ -137,8 +137,8 @@ namespace SupportDesk.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("action");
 
-                    b.Property<int>("ActorUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("actor_user_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")

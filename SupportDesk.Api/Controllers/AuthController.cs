@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SupportDesk.Application.Auth;
 using SupportDesk.Contracts.Contracts.Requests;
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
     }
     
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login(
         [FromBody] LoginRequest request,
         CancellationToken cancellationToken)
@@ -28,7 +30,7 @@ public class AuthController : ControllerBase
             var response = await _authService.TryLogin(request: request, cancellationToken: cancellationToken);
             return Ok(response);
         }
-        catch (DomainException exception)
+        catch (DomainException)
         {
             return Unauthorized(new
             {

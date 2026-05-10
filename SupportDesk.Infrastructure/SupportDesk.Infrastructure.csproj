@@ -14,11 +14,16 @@
       </PackageReference>
       <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="11.0.0-preview.3.26207.106" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\SupportDesk.Domain\SupportDesk.Domain.csproj" />
       <ProjectReference Include="..\SupportDesk.Application\SupportDesk.Application.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Migrations\" />
     </ItemGroup>
 
 </Project>

@@ -4,7 +4,7 @@ namespace SupportDesk.Contracts.Responses;
 
 public class TicketListItemResponse
 {
-    public TicketListItemResponse(int id, string? title, TicketStatus status, TicketPriority priority, DateTimeOffset createdAt, int? assignedAgentId)
+    public TicketListItemResponse(int id, string? title, TicketStatus status, TicketPriority priority, DateTimeOffset createdAt, Guid? assignedAgentId)
     {
         Id = id;
         Title = title;
@@ -19,5 +19,5 @@ public class TicketListItemResponse
     public TicketStatus Status { get; set; }
     public TicketPriority Priority { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public int? AssignedAgentId { get; set; }
+    public Guid? AssignedAgentId { get; set; }
 }

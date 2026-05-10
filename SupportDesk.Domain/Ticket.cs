@@ -2,7 +2,7 @@ namespace SupportDesk.Domain;
 
 public class Ticket
 {
-    public Ticket(string title, string description, TicketPriority priority, int createdByUserId)
+    public Ticket(string title, string description, TicketPriority priority, Guid createdByUserId)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new DomainException("Title cannot be empty.");
@@ -25,8 +25,8 @@ public class Ticket
     public string Description  { get; private set; }
     public TicketStatus Status { get; private set; }
     public TicketPriority Priority { get; private set; }
-    public int CreatedByUserId { get; private set; }
-    public int? AssignedAgentId { get; private set; }
+    public Guid CreatedByUserId { get; private set; }
+    public Guid? AssignedAgentId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? ResolvedAt { get; private set; }
@@ -38,7 +38,7 @@ public class Ticket
     private readonly List<TicketHistoryItem> _history = new();
     private readonly List<TicketComment> _comments = new();
     
-    public void AssignTo(int agentId, int actorId)
+    public void AssignTo(Guid agentId, Guid actorId)
     {
         if (Status != TicketStatus.New)
             throw new DomainException("Only new tickets can be assigned.");
@@ -53,7 +53,7 @@ public class Ticket
             now: now);
     }
 
-    public void StartProgress(int actorId)
+    public void StartProgress(Guid actorId)
     {
         if (Status is not (TicketStatus.Assigned or TicketStatus.Resolved))
             throw new DomainException("Only assigned or resolved tickets can be moved to in progress.");
@@ -70,7 +70,7 @@ public class Ticket
             now: now);
     }
 
-    public void Resolve(int actorId, string resolution)
+    public void Resolve(Guid actorId, string resolution)
     {
         if (string.IsNullOrWhiteSpace(resolution))
             throw new DomainException("Resolution cannot be empty.");
@@ -87,7 +87,7 @@ public class Ticket
             now: now);
     }
 
-    public void Close(int actorId)
+    public void Close(Guid actorId)
     {
         if (Status != TicketStatus.Resolved)
             throw new DomainException("Only resolved tickets can be closed.");
@@ -102,7 +102,7 @@ public class Ticket
             now: now);
     }
 
-    public void Cancel(int actorId, string reason)
+    public void Cancel(Guid actorId, string reason)
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new DomainException("Reason cannot be empty.");
@@ -118,7 +118,7 @@ public class Ticket
             now: now);
     }
     
-    public TicketComment AddComment(int authorId, string text)
+    public TicketComment AddComment(Guid authorId, string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new DomainException("Comment cannot be empty.");
@@ -139,7 +139,7 @@ public class Ticket
 
     private void ChangeStatus(
         TicketStatus newStatus,
-        int actorId,
+        Guid actorId,
         string eventType,
         string description,
         DateTimeOffset now)

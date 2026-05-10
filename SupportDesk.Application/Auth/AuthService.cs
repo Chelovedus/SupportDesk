@@ -9,11 +9,13 @@ public class AuthService : IAuthService
 {
     private readonly IUserReadRepository _userReadRepository;
     private readonly IPasswordHashService _passwordHashService;
+    private readonly IJwtTokenService _jwtTokenService;
 
-    public AuthService(IUserReadRepository userReadRepository, IPasswordHashService passwordHashService)
+    public AuthService(IUserReadRepository userReadRepository, IPasswordHashService passwordHashService, IJwtTokenService jwtTokenService)
     {
         _userReadRepository = userReadRepository;
         _passwordHashService = passwordHashService;
+        _jwtTokenService = jwtTokenService;
     }
     public async Task<LoginResponse> TryLogin(LoginRequest request, CancellationToken cancellationToken)
     {
@@ -31,14 +33,14 @@ public class AuthService : IAuthService
         if (isSuccess is false)
             throw new DomainException("Invalid email or password.");
         
-        var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
+        var accessToken = _jwtTokenService.CreateAccessToken(user);
 
         return new LoginResponse()
         {
             Email = email,
-            AccessToken = "WIP_ACCESS_TOKEN",
+            AccessToken = accessToken.AccessToken,
             Role = user.Role.ToString(),
-            ExpiresAt = expiresAt
+            ExpiresAt = accessToken.ExpiresAt
         };
 
     }

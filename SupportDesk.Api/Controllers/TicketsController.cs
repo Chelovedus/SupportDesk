@@ -1,13 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using SupportDesk.Contracts.Requests;
 using SupportDesk.Contracts.Responses;
 using SupportDesk.Application.Tickets;
 using SupportDesk.Domain;
+using SupportDesk.Domain.Users;
 
 namespace SupportDesk.Controllers;
 
 [ApiController]
 [Route("api/tickets")]
+[Authorize]
 public class TicketsController : ControllerBase
 {
     private readonly ITicketService _ticketService;
@@ -23,7 +27,12 @@ public class TicketsController : ControllerBase
     {
         try
         {
+            var userId = GetCurrentUserId();
+            var role = GetCurrentUserRole();
+            
             var tickets = await _ticketService.GetAllTickets(
+                userId: userId,
+                role: role,
                 request: request,
                 cancellationToken: cancellationToken);
             
@@ -41,15 +50,19 @@ public class TicketsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<TicketResponse>> GetTicket(int id, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.GetTicketById(ticketId: id, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.GetTicketById(ticketId: id, userId: actorId, role: role, cancellationToken: cancellationToken));
     }
 
     [HttpPost]
+    [Authorize(Roles = "User,Admin")]
     public async Task<ActionResult<TicketResponse>> CreateTicket(CreateTicketRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            var ticket = await _ticketService.CreateTicket(request: request, cancellationToken: cancellationToken);
+            var userId = GetCurrentUserId();
+            var ticket = await _ticketService.CreateTicket(request: request, userId: userId, cancellationToken: cancellationToken);
 
             return CreatedAtAction(
                 actionName: nameof(GetTicket),
@@ -66,51 +79,92 @@ public class TicketsController : ControllerBase
     }
 
     [HttpPost("{id:int}/assign")]
+    [Authorize(Roles = "SupportAgent,Admin")]
     public async Task<ActionResult<TicketResponse>> AssignTicket(int id, AssignTicketRequest request, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.AssignTicket(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.AssignTicket(ticketId: id, actorId: actorId, role: role, request: request, cancellationToken: cancellationToken));
     }
 
     [HttpPost("{id:int}/start")]
-    public async Task<ActionResult<TicketResponse>> StartTicket(int id, StartProgressRequest request, CancellationToken cancellationToken)
+    [Authorize(Roles = "SupportAgent,Admin")]
+    public async Task<ActionResult<TicketResponse>> StartTicket(int id, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.StartProgressTicket(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.StartProgressTicket(ticketId: id, actorId: actorId, role: role, cancellationToken: cancellationToken));
     }
 
     [HttpPost("{id:int}/resolve")]
+    [Authorize(Roles = "SupportAgent,Admin")]
     public async Task<ActionResult<TicketResponse>> ResolveTicket(int id, ResolveTicketRequest request, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.ResolveTicket(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.ResolveTicket(ticketId: id, actorId: actorId, request: request, role: role, cancellationToken: cancellationToken));
     }
 
     [HttpPost("{id:int}/close")]
-    public async Task<ActionResult<TicketResponse>> CloseTicket(int id, CloseTicketRequest request, CancellationToken cancellationToken)
+    [Authorize(Roles = "User,Admin")]
+    public async Task<ActionResult<TicketResponse>> CloseTicket(int id, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.CloseTicket(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.CloseTicket(ticketId: id, actorId: actorId, role: role, cancellationToken: cancellationToken));
     }
 
     [HttpPost("{id:int}/cancel")]
+    [Authorize(Roles = "User,Admin")]
     public async Task<ActionResult<TicketResponse>> CancelTicket(int id, CancelTicketRequest request, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.CancelTicket(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.CancelTicket(ticketId: id, actorId: actorId, role: role, request: request, cancellationToken: cancellationToken));
     }
 
     [HttpGet("{id:int}/comments")]
     public async Task<ActionResult<IReadOnlyCollection<TicketCommentResponse>>> GetCommentsForTicket(int id, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.GetComments(ticketId: id, cancellationToken: cancellationToken));
+        var userId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.GetComments(ticketId: id, userId: userId, role: role, cancellationToken: cancellationToken));
     }
     
     [HttpPost("{id:int}/comments")]
     public async Task<ActionResult<TicketCommentResponse>> CreateCommentForTicket(int id, AddCommentRequest request, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.AddComment(ticketId: id, request: request, cancellationToken: cancellationToken));
+        var actorId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.AddComment(ticketId: id, actorId: actorId, role: role, request: request, cancellationToken: cancellationToken));
     }
 
     [HttpGet("{id:int}/history")]
     public async Task<ActionResult<IReadOnlyCollection<TicketHistoryItemResponse>>> GetHistoryForTicket(int id, CancellationToken cancellationToken)
     {
-        return await ExecuteTicketAction(() => _ticketService.GetHistory(ticketId: id, cancellationToken: cancellationToken));
+        var userId = GetCurrentUserId();
+        var role = GetCurrentUserRole();
+        return await ExecuteTicketAction(() => _ticketService.GetHistory(ticketId: id, userId: userId, role: role, cancellationToken: cancellationToken));
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var value = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(value, out var userId))
+            throw new InvalidOperationException("User id claim is missing.");
+        
+        return userId;
+    }
+
+    private UserRole GetCurrentUserRole()
+    {
+        var value = HttpContext.User.FindFirstValue(ClaimTypes.Role);
+        
+        if (!Enum.TryParse<UserRole>(value, out var role))
+            throw new InvalidOperationException("User role claim is missing.");
+        
+        return role;
     }
     
     private async Task<ActionResult<TResponse>> ExecuteTicketAction<TResponse>(Func<Task<TResponse?>> action)

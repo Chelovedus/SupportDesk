@@ -12,8 +12,8 @@ using SupportDesk.Infrastructure;
 namespace SupportDesk.Infrastructure.Migrations
 {
     [DbContext(typeof(SupportDeskDbContext))]
-    [Migration("20260506115928_AddTicketSearchIndexes")]
-    partial class AddTicketSearchIndexes
+    [Migration("20260510104932_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,8 +33,8 @@ namespace SupportDesk.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AssignedAgentId")
-                        .HasColumnType("integer")
+                    b.Property<Guid?>("AssignedAgentId")
+                        .HasColumnType("uuid")
                         .HasColumnName("assigned_agent_id");
 
                     b.Property<DateTimeOffset?>("ClosedAt")
@@ -45,8 +45,8 @@ namespace SupportDesk.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
@@ -103,8 +103,8 @@ namespace SupportDesk.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AuthorUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("author_user_id");
 
                     b.Property<string>("CommentText")
@@ -140,8 +140,8 @@ namespace SupportDesk.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("action");
 
-                    b.Property<int>("ActorUserId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
                         .HasColumnName("actor_user_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -172,6 +172,48 @@ namespace SupportDesk.Infrastructure.Migrations
                     b.HasIndex("TicketId");
 
                     b.ToTable("ticket_history", (string)null);
+                });
+
+            modelBuilder.Entity("SupportDesk.Domain.Users.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("role");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("users", (string)null);
                 });
 
             modelBuilder.Entity("SupportDesk.Domain.TicketComment", b =>

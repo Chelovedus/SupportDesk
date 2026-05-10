@@ -4,7 +4,7 @@ namespace SupportDesk.Contracts.Responses;
 
 public sealed class TicketResponse
 {
-    public TicketResponse(int id, string title, string description, TicketStatus status, TicketPriority priority, int createdByUserId, int? assignedAgentId, DateTimeOffset createdAt, DateTimeOffset updatedAt, DateTimeOffset? resolvedAt, DateTimeOffset? closedAt)
+    public TicketResponse(int id, string title, string description, TicketStatus status, TicketPriority priority, Guid createdByUserId, Guid? assignedAgentId, DateTimeOffset createdAt, DateTimeOffset updatedAt, DateTimeOffset? resolvedAt, DateTimeOffset? closedAt)
     {
         Id = id;
         Title = title;
@@ -24,8 +24,8 @@ public sealed class TicketResponse
     public string Description  { get; set; }
     public TicketStatus Status { get; set; }
     public TicketPriority Priority { get; set; }
-    public int CreatedByUserId { get; set; }
-    public int? AssignedAgentId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public Guid? AssignedAgentId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? ResolvedAt { get; set; }

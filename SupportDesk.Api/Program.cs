@@ -1,7 +1,10 @@
+using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
 using SupportDesk.Application.Tickets;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using SupportDesk.Application.Auth;
 using SupportDesk.Application.Users;
 using SupportDesk.Infrastructure;
@@ -19,10 +22,51 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<SupportDeskDbContext>(options =>
+{
+    options.UseNpgsql(connectionString);
+});
+
 builder.Services.AddScoped<ITicketService, EfTicketService>();
 builder.Services.AddScoped<IUserReadRepository, EfUserReadRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHashService, AspNetCorePasswordHashService>();
+
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection("Jwt"));
+
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+var jwtOptions = builder.Configuration
+                     .GetSection("Jwt")
+                     .Get<JwtOptions>()
+                 ?? throw new InvalidOperationException("Jwt options are not configured.");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+
+            ValidateLifetime = true,
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 
 builder.Services.AddScoped<DatabaseSeeder>();
@@ -30,18 +74,28 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title =  "SupportDesk API",
+        Title = "SupportDesk API",
         Version = "v1",
         Description = "Backend API for internal support ticket management"
     });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste JWT token here. Example: eyJ..."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-builder.Services.AddDbContext<SupportDeskDbContext>(options =>
-{
-    options.UseNpgsql(connectionString);
-});
 
 var app = builder.Build();
 
@@ -61,6 +115,8 @@ using (var scope = app.Services.CreateScope())
     await seeder.AddSeedUsersAsync();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

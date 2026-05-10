@@ -5,6 +5,15 @@ namespace SupportDesk.UnitTests.Domain;
 
 public class TicketTests
 {
+    private static readonly Guid UserId =
+        Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    private static readonly Guid AgentId =
+        Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    private static readonly Guid ActorId =
+        Guid.Parse("33333333-3333-3333-3333-333333333333");
+    
     [Fact]
     public void New_ticket_should_have_new_status()
     {
@@ -21,7 +30,7 @@ public class TicketTests
         var ticket = CreateTicket();
 
         // Act
-        ticket.AssignTo(agentId: 3, actorId: 1);
+        ticket.AssignTo(agentId: AgentId, actorId: ActorId);
 
         // Assert
         ticket.Status.Should().Be(TicketStatus.Assigned);
@@ -32,9 +41,9 @@ public class TicketTests
     {
         // Arrange
         var ticket = CreateTicket();
-        var assignedAgentId = 6;
+        var assignedAgentId = Guid.CreateVersion7();
         
-        ticket.AssignTo(agentId: assignedAgentId, actorId: 1);
+        ticket.AssignTo(agentId: assignedAgentId, actorId: ActorId);
         
         ticket.AssignedAgentId.Should().Be(assignedAgentId);
     }
@@ -44,7 +53,7 @@ public class TicketTests
     {
         var ticket = CreateTicket();
 
-        var act = () => ticket.Close(actorId: 4);
+        var act = () => ticket.Close(actorId: ActorId);
         
         act.Should().Throw<DomainException>();
         ticket.Status.Should().Be(TicketStatus.New);
@@ -56,8 +65,8 @@ public class TicketTests
     {
         var ticket = CreateTicket();
 
-        ticket.AssignTo(actorId: 4, agentId: 1);
-        ticket.StartProgress(actorId: 4);
+        ticket.AssignTo(actorId: ActorId, agentId: AgentId);
+        ticket.StartProgress(actorId: ActorId);
         
         ticket.Status.Should().Be(TicketStatus.InProgress);
     }
@@ -67,9 +76,9 @@ public class TicketTests
     {
         var ticket = CreateTicket();
 
-        ticket.AssignTo(actorId: 4, agentId: 1);
-        ticket.StartProgress(actorId: 4);
-        ticket.Resolve(actorId: 4, "User was unlocked.");
+        ticket.AssignTo(actorId: ActorId, agentId: AgentId);
+        ticket.StartProgress(actorId: ActorId);
+        ticket.Resolve(actorId: ActorId, "User was unlocked.");
         
         ticket.Status.Should().Be(TicketStatus.Resolved);
         ticket.ResolvedAt.Should().NotBeNull();
@@ -80,10 +89,10 @@ public class TicketTests
     {
         var ticket = CreateTicket();
 
-        ticket.AssignTo(actorId: 4, agentId: 1);
-        ticket.StartProgress(actorId: 4);
-        ticket.Resolve(actorId: 4, "User was unlocked.");
-        ticket.Close(actorId: 4);
+        ticket.AssignTo(actorId: ActorId, agentId: AgentId);
+        ticket.StartProgress(actorId: ActorId);
+        ticket.Resolve(actorId: ActorId, "User was unlocked.");
+        ticket.Close(actorId: ActorId);
 
         ticket.Status.Should().Be(TicketStatus.Closed);
         ticket.ClosedAt.Should().NotBeNull();
@@ -94,16 +103,16 @@ public class TicketTests
     {
         var ticket = CreateTicket();
 
-        ticket.AssignTo(actorId: 4, agentId: 1);
-        ticket.StartProgress(actorId: 4);
-        ticket.Resolve(actorId: 4, "User was unlocked.");
-        ticket.Close(actorId: 4);
+        ticket.AssignTo(actorId: ActorId, agentId: AgentId);
+        ticket.StartProgress(actorId: ActorId);
+        ticket.Resolve(actorId: ActorId, "User was unlocked.");
+        ticket.Close(actorId: ActorId);
         
         // ReSharper disable ConvertToLocalFunction
-        var actAssign = () => ticket.AssignTo(agentId: 1, actorId: 4);
-        var actStartProgress = () => ticket.StartProgress(actorId: 4);
-        var actResolve = () => ticket.Resolve(actorId: 4, "Again unlocked.");
-        var actCancel = () => ticket.Cancel(actorId: 4, reason: "User deleted.");
+        var actAssign = () => ticket.AssignTo(agentId: AgentId, actorId: ActorId);
+        var actStartProgress = () => ticket.StartProgress(actorId: ActorId);
+        var actResolve = () => ticket.Resolve(actorId: ActorId, "Again unlocked.");
+        var actCancel = () => ticket.Cancel(actorId: ActorId, reason: "User deleted.");
         // ReSharper restore ConvertToLocalFunction
         Action[] actions = [actAssign, actResolve, actStartProgress, actCancel];
 
@@ -120,7 +129,7 @@ public class TicketTests
         var ticket = new Ticket(
             title: "I cannot login",
             description: "Exception: password incorrect. Help me!!",
-            createdByUserId: 1,
+            createdByUserId: UserId,
             priority: TicketPriority.Normal);
         
         return ticket;
