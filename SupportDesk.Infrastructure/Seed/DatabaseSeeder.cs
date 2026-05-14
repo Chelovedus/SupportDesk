@@ -34,6 +34,14 @@ public class DatabaseSeeder
             role: UserRole.User,
             createdAt: now);
         
+        var userSecond = new User(
+            id: Guid.CreateVersion7(),
+            displayName: "UserSecond",
+            email: "usersecond@example.com",
+            passwordHash: _passwordHashService.Hash("Password123!"),
+            role: UserRole.User,
+            createdAt: now);
+        
         var agent = new User(
             id: Guid.CreateVersion7(),
             displayName: "SupportAgent",
@@ -50,7 +58,7 @@ public class DatabaseSeeder
             role: UserRole.Admin,
             createdAt: now);
         
-        _dbContext.Users.AddRange(user, agent, admin);
+        _dbContext.Users.AddRange(user, userSecond, agent, admin);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

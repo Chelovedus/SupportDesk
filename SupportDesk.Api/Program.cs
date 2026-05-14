@@ -109,10 +109,24 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-using (var scope = app.Services.CreateScope())
+var migrateOnStartup = app.Configuration.GetValue<bool>("Database:MigrateOnStartup");
+var seedOnStartup = app.Configuration.GetValue<bool>("Database:SeedOnStartup");
+
+if (migrateOnStartup || seedOnStartup)
 {
-    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-    await seeder.AddSeedUsersAsync();
+    using var scope = app.Services.CreateScope();
+
+    if (migrateOnStartup)
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<SupportDeskDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+
+    if (seedOnStartup)
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.AddSeedUsersAsync();
+    }
 }
 
 app.UseAuthentication();
