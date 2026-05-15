@@ -251,10 +251,14 @@ Example response:
 
 ```json
 {
+  "email": "user@example.com",
+  "userId": "019e1182-7e18-7d04-a35d-8d48115cda62",
+  "role": "User",
   "accessToken": "<jwt_access_token>",
   "expiresAt": "2026-05-14T12:00:00Z"
 }
 ```
+<img width="519" height="397" alt="Login" src="https://github.com/user-attachments/assets/674da134-bb52-4b87-b0f9-37722877310d" />
 
 ## Example ticket creation request
 
@@ -269,6 +273,8 @@ Content-Type: application/json
   "priority": "High"
 }
 ```
+<img width="519" height="397" alt="Create Ticket" src="https://github.com/user-attachments/assets/d617516b-4563-4d1c-a369-aa4f02b4eaf6" />
+
 
 ## Suggested demo flow
 
@@ -291,18 +297,6 @@ Recommended flow:
 13. Close the resolved ticket.
 14. Open ticket history.
 15. Run `dotnet test` and show that integration tests pass with Testcontainers.
-
-## Recommended demo media
-
-GIFs are optional, but they can make the repository more convincing if they are short and technical.
-
-Recommended recordings:
-
-- `docs/assets/swagger-ticket-lifecycle.gif`: login, create ticket, assign, start, resolve, close, history.
-- `docs/assets/testcontainers-tests.gif`: `dotnet test` showing integration tests and Testcontainers startup.
-- `docs/assets/query-filtering.gif`: Swagger request with filtering, sorting, and pagination.
-
-Do not add large videos directly to the repository. If a video is needed, keep it outside the repository and link to it from the README.
 
 ## Current limitations
 
