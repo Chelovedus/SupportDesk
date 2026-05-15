@@ -38,6 +38,7 @@ public class AuthService : IAuthService
         return new LoginResponse()
         {
             Email = email,
+            UserId = user.Id,
             AccessToken = accessToken.AccessToken,
             Role = user.Role.ToString(),
             ExpiresAt = accessToken.ExpiresAt
