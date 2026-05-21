@@ -14,6 +14,7 @@ public class SupportDeskDbContext : DbContext
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<TicketHistoryItem> TicketHistoryItems => Set<TicketHistoryItem>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
