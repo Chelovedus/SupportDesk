@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SupportDesk.Application.Tickets;
+using SupportDesk.Contracts.Contracts.Events;
 using SupportDesk.Contracts.Requests;
 using SupportDesk.Contracts.Responses;
 using SupportDesk.Domain;
@@ -18,6 +20,8 @@ public class EfTicketService : ITicketService
 
     public async Task<TicketResponse> CreateTicket(CreateTicketRequest request, Guid userId, CancellationToken cancellationToken)
     {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken: cancellationToken);
+        
         var ticket = new Ticket(
             title: request.Title,
             description: request.Description,
@@ -26,6 +30,23 @@ public class EfTicketService : ITicketService
 
         _dbContext.Tickets.Add(ticket);
         await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
+
+        var ticketEvent = new TicketCreatedEvent
+        {
+            TicketId = ticket.Id,
+            CreatedByUserId = ticket.CreatedByUserId,
+            Title = ticket.Title,
+            CreatedAt = ticket.CreatedAt
+        };
+
+        AddOutboxMessage(
+            eventType: nameof(TicketCreatedEvent),
+            eventPayload: ticketEvent,
+            createdAt: DateTimeOffset.UtcNow);
+        
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
+        
+        await transaction.CommitAsync(cancellationToken: cancellationToken);
         
         return MapToResponse(ticket);
     }
@@ -143,9 +164,26 @@ public class EfTicketService : ITicketService
         if (!agentExists)
             throw new DomainException("Support agent does not exist.");
         
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken: cancellationToken);
+        
         ticket.AssignTo(agentId: request.AgentId, actorId: actorId);
         
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        var ticketEvent = new TicketAssignedEvent
+        {
+            TicketId = ticket.Id,
+            AssignedAgentId = request.AgentId,
+            ActorUserId = actorId,
+            AssignedAt = ticket.UpdatedAt
+        };
+
+        AddOutboxMessage(
+            eventType: nameof(TicketAssignedEvent),
+            eventPayload: ticketEvent,
+            createdAt: DateTimeOffset.UtcNow);
+        
+        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken: cancellationToken);
 
         return MapToResponse(ticket);
 
@@ -158,7 +196,14 @@ public class EfTicketService : ITicketService
             actorId: actorId,
             role: role,
             cancellationToken: cancellationToken,
-            change: ticket => ticket.StartProgress(actorId: actorId));
+            change: ticket => ticket.StartProgress(actorId: actorId),
+            eventType: nameof(TicketStartedProgressEvent),
+            createEvent: ticket => new TicketStartedProgressEvent
+            {
+                TicketId = ticket.Id,
+                ActorUserId = actorId,
+                StartedAt = ticket.UpdatedAt
+            });
     }
 
     public Task<TicketResponse?> ResolveTicket(int ticketId, Guid actorId, UserRole role, ResolveTicketRequest request, CancellationToken cancellationToken)
@@ -168,7 +213,14 @@ public class EfTicketService : ITicketService
             actorId: actorId,
             role: role,
             cancellationToken: cancellationToken,
-            change: ticket => ticket.Resolve(actorId: actorId, resolution: request.Resolution));
+            change: ticket => ticket.Resolve(actorId: actorId, resolution: request.Resolution),
+            eventType: nameof(TicketResolvedEvent),
+            createEvent: ticket => new TicketResolvedEvent
+            {
+                TicketId = ticket.Id,
+                ActorUserId = actorId,
+                ResolvedAt = ticket.ResolvedAt!.Value
+            });
     }
 
     public Task<TicketResponse?> CloseTicket(int ticketId, Guid actorId, UserRole role, CancellationToken cancellationToken)
@@ -178,7 +230,14 @@ public class EfTicketService : ITicketService
             actorId: actorId,
             role: role,
             cancellationToken: cancellationToken,
-            change: ticket => ticket.Close(actorId: actorId));
+            change: ticket => ticket.Close(actorId: actorId),
+            eventType: nameof(TicketClosedEvent),
+            createEvent: ticket => new TicketClosedEvent
+            {
+                TicketId = ticket.Id,
+                ActorUserId = actorId,
+                ClosedAt = ticket.ClosedAt!.Value
+            });
     }
 
     public Task<TicketResponse?> CancelTicket(int ticketId, Guid actorId, UserRole role, CancelTicketRequest request, CancellationToken cancellationToken)
@@ -188,7 +247,15 @@ public class EfTicketService : ITicketService
             actorId: actorId,
             role: role,
             cancellationToken: cancellationToken,
-            change: ticket => ticket.Cancel(actorId: actorId, reason: request.Reason));
+            change: ticket => ticket.Cancel(actorId: actorId, reason: request.Reason),
+            eventType: nameof(TicketCancelledEvent),
+            createEvent: ticket => new TicketCancelledEvent
+            {
+                TicketId = ticket.Id,
+                ActorUserId = actorId,
+                CancelledAt = ticket.UpdatedAt,
+                Reason = request.Reason
+            });
     }
 
     public async Task<TicketCommentResponse?> AddComment(int ticketId, Guid actorId, UserRole role, AddCommentRequest request, CancellationToken cancellationToken)
@@ -289,8 +356,11 @@ public class EfTicketService : ITicketService
         };
     }
     
-    private async Task<TicketResponse?> ExecuteTicketChangeAsync(int ticketId, Guid actorId, UserRole role, CancellationToken cancellationToken, Action<Ticket> change)
+    private async Task<TicketResponse?> ExecuteTicketChangeAsync(int ticketId, Guid actorId, UserRole role, CancellationToken cancellationToken, Action<Ticket> change, string? eventType = null, Func<Ticket, object>? createEvent = null)
     {
+        if ((eventType is null) != (createEvent is null))
+            throw new InvalidOperationException("Event type and event factory must be provided together.");
+
         var query = _dbContext.Tickets
             .Where(ticket => ticket.Id == ticketId);
         
@@ -300,11 +370,42 @@ public class EfTicketService : ITicketService
 
         if (ticket is null)
             return null;
+    
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
 
         change(ticket);
-        await _dbContext.SaveChangesAsync(cancellationToken: cancellationToken);
+
+        if (eventType is not null && createEvent is not null)
+        {
+            var ticketEvent = createEvent(ticket);
+            AddOutboxMessage(
+                eventType: eventType,
+                eventPayload: ticketEvent,
+                createdAt: DateTimeOffset.UtcNow);
+        }
+        
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    
+        await transaction.CommitAsync(cancellationToken);
         
         return MapToResponse(ticket);
+    }
+    
+    private void AddOutboxMessage(
+        string eventType,
+        object eventPayload,
+        DateTimeOffset createdAt)
+    {
+        var payloadJson = JsonSerializer.Serialize(eventPayload);
+        
+        var outboxMessage = new OutboxMessage(
+            id: Guid.CreateVersion7(),
+            type: eventType,
+            payloadJson: payloadJson,
+            createdAt: createdAt);
+        
+        _dbContext.OutboxMessages.Add(outboxMessage);
     }
     
     private static TicketResponse MapToResponse(Ticket ticket)
