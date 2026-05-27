@@ -23,8 +23,38 @@ public class OutboxMessage
     public string Type { get; private set; }
     public string PayloadJson { get; private set; }
     public OutboxMessageStatus Status { get; private set; }
-    public int RetryCount;
-    public DateTimeOffset CreatedAt;
-    public DateTimeOffset? ProcessedAt;
-    public string? LastError;
+    public int RetryCount { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? ProcessedAt { get; private set; }
+    public string? LastError { get; private set; }
+
+    public void MarkAsProcessing()
+    {
+        if (Status != OutboxMessageStatus.Pending)
+            throw new DomainException("Only pending outbox messages can be marked as processing");
+        
+        Status = OutboxMessageStatus.Processing;
+    }
+
+    public void MarkAsProcessed(DateTimeOffset processedAt)
+    {
+        if (Status != OutboxMessageStatus.Processing)
+            throw new DomainException("Only processing outbox messages can be processed");
+        
+        Status = OutboxMessageStatus.Processed;
+        ProcessedAt = processedAt;
+        LastError = null;
+    }
+
+    public void MarkAsFailed(string error, int maxRetryCount)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+            throw new DomainException("Error can not be empty.");
+        if (maxRetryCount < 1)
+            throw new DomainException("Max retry count must be greater than zero.");
+        
+        RetryCount++;
+        Status = RetryCount < maxRetryCount ? OutboxMessageStatus.Pending : OutboxMessageStatus.Failed;
+        LastError = error;
+    }
 }

@@ -9,6 +9,7 @@ using SupportDesk.Application.Auth;
 using SupportDesk.Application.Users;
 using SupportDesk.Infrastructure;
 using SupportDesk.Infrastructure.Auth;
+using SupportDesk.Infrastructure.Outbox;
 using SupportDesk.Infrastructure.Seed;
 using SupportDesk.Infrastructure.Tickets;
 using SupportDesk.Infrastructure.Users;
@@ -33,6 +34,10 @@ builder.Services.AddScoped<ITicketService, EfTicketService>();
 builder.Services.AddScoped<IUserReadRepository, EfUserReadRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHashService, AspNetCorePasswordHashService>();
+
+builder.Services.Configure<OutboxProcessorOptions>(
+    builder.Configuration.GetSection(OutboxProcessorOptions.SectionName));
+builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
 
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection("Jwt"));
