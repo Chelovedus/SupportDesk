@@ -1,4 +1,5 @@
 services:
+
   postgres:
     image: postgres:17
     container_name: supportdesk-postgresql
@@ -11,5 +12,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: supportdesk-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: supportdeskUser
+      RABBITMQ_DEFAULT_PASS: supportdeskPassword
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
 volumes:
+  rabbitmq_data:
   postgres_data:
