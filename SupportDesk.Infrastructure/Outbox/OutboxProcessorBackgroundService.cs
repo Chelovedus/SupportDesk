@@ -11,15 +11,18 @@ public sealed class OutboxProcessorBackgroundService : BackgroundService
 {
     public OutboxProcessorBackgroundService(
         IServiceScopeFactory serviceScopeFactory,
+        IOutboxMessagePublisher messagePublisher,
         ILogger<OutboxProcessorBackgroundService> logger,
         IOptions<OutboxProcessorOptions> options)
     {
         _serviceScopeFactory = serviceScopeFactory;
+        _publisher = messagePublisher;
         _logger = logger;
         _options = options.Value;
     }
 
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IOutboxMessagePublisher _publisher;
     private readonly ILogger<OutboxProcessorBackgroundService> _logger;
     private readonly OutboxProcessorOptions _options;
 
@@ -69,11 +72,19 @@ public sealed class OutboxProcessorBackgroundService : BackgroundService
             try
             {
                 message.MarkAsProcessing();
+
+                await _publisher.PublishAsync(message: message, cancellationToken: cancellationToken);
+                
                 _logger.LogInformation(
-                    "Processing outbox message {MessageId} of type {MessageType}.",
+                    "Published outbox message {MessageId} of type {MessageType}.",
                     message.Id,
                     message.Type);
+                
                 message.MarkAsProcessed(DateTimeOffset.UtcNow);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception exception)
             {

@@ -38,6 +38,7 @@ builder.Services.AddScoped<IPasswordHashService, AspNetCorePasswordHashService>(
 
 builder.Services.Configure<RabbitMqOptions>(
     builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+builder.Services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxPublisher>();
 
 builder.Services.Configure<OutboxProcessorOptions>(
     builder.Configuration.GetSection(OutboxProcessorOptions.SectionName));
