@@ -10,6 +10,7 @@ using SupportDesk.Application.Users;
 using SupportDesk.Infrastructure;
 using SupportDesk.Infrastructure.Auth;
 using SupportDesk.Infrastructure.Outbox;
+using SupportDesk.Infrastructure.RabbitMq;
 using SupportDesk.Infrastructure.Seed;
 using SupportDesk.Infrastructure.Tickets;
 using SupportDesk.Infrastructure.Users;
@@ -34,6 +35,9 @@ builder.Services.AddScoped<ITicketService, EfTicketService>();
 builder.Services.AddScoped<IUserReadRepository, EfUserReadRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHashService, AspNetCorePasswordHashService>();
+
+builder.Services.Configure<RabbitMqOptions>(
+    builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 
 builder.Services.Configure<OutboxProcessorOptions>(
     builder.Configuration.GetSection(OutboxProcessorOptions.SectionName));
