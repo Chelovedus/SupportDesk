@@ -19,8 +19,8 @@ services:
       RABBITMQ_DEFAULT_USER: supportdeskUser
       RABBITMQ_DEFAULT_PASS: supportdeskPassword
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
