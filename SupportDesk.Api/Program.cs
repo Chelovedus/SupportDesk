@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using SupportDesk.Application.Tickets;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,8 @@ using SupportDesk.Infrastructure.Seed;
 using SupportDesk.Infrastructure.Tickets;
 using SupportDesk.Infrastructure.Users;
 using SupportDesk.Middleware;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,7 +109,13 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<SupportDeskDbContext>(
+        name: "postgresql",
+        tags: ["ready"])
+    .AddCheck<RabbitMqHealthCheck>(
+        name: "rabbitmq",
+        tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -144,6 +153,15 @@ if (migrateOnStartup || seedOnStartup)
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = healthCheck => healthCheck.Tags.Contains("ready")
+});
+
+app.MapControllers();
 app.Run();

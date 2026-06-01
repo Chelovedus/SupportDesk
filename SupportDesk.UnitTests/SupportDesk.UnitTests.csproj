@@ -21,6 +21,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SupportDesk.Domain\SupportDesk.Domain.csproj" />
+      <ProjectReference Include="..\SupportDesk.Infrastructure\SupportDesk.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
