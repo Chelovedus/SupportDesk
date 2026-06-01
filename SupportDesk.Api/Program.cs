@@ -14,6 +14,7 @@ using SupportDesk.Infrastructure.RabbitMq;
 using SupportDesk.Infrastructure.Seed;
 using SupportDesk.Infrastructure.Tickets;
 using SupportDesk.Infrastructure.Users;
+using SupportDesk.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,6 +109,8 @@ builder.Services.AddSwaggerGen(options =>
 
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
