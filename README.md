@@ -1,16 +1,14 @@
 # SupportDesk API
 
-SupportDesk API is an MVP backend service for internal support ticket management.
+The project demonstrates a backend flow with PostgreSQL persistence, JWT authorization, ticket lifecycle management, transactional outbox, RabbitMQ event publishing, notification worker, health checks and automated tests.
 
-The project demonstrates a real backend flow without a frontend: a user creates a ticket, a support agent processes it, comments are added, status changes are stored, access rules are enforced, and the behavior is verified through automated tests.
+<img width="1672" height="941" alt="image-сжатый" src="https://github.com/user-attachments/assets/8013d4e4-5224-4a10-9b0e-f80e49399ab8" />
 
-<img width="1672" height="941" alt="image-сжатый" src="https://github.com/user-attachments/assets/edb5e7ce-ecc5-4bd8-9f67-247cb2fe0a3e" />
+## Current scope
 
-## MVP scope
+This README describes the current state of the project after the MVP and production-oriented extensions.
 
-This README describes the current MVP version of the project.
-
-Implemented in the MVP:
+Implemented:
 
 - ASP.NET Core Web API
 - Controller-based REST API
@@ -22,24 +20,32 @@ Implemented in the MVP:
 - JWT authentication
 - Role-based authorization
 - Seed demo users
+- Transactional outbox
+- Background outbox processor
+- RabbitMQ event publishing
+- NotificationWorker RabbitMQ consumer
+- Correlation id middleware
+- Liveness and readiness health checks
+- PostgreSQL readiness check
+- RabbitMQ readiness check
 - Filtering, sorting, and pagination for ticket queries
 - Unit tests
 - Integration tests with Testcontainers
 - Docker Compose for local infrastructure
 - Swagger/OpenAPI documentation
 
-Not included in the MVP yet:
+Not included yet:
 
 - Frontend application
 - User registration
-- RabbitMQ
 - Redis
 - gRPC
 - Prometheus metrics
 - File attachments
 - Real email notifications
+- Kubernetes
 
-These features are intentionally outside the MVP and can be added later as production-oriented extensions.
+These features are intentionally left for later iterations.
 
 ## Tech stack
 
@@ -48,6 +54,10 @@ These features are intentionally outside the MVP and can be added later as produ
 - ASP.NET Core Web API
 - Entity Framework Core
 - PostgreSQL
+- RabbitMQ
+- Hosted background services
+- Transactional outbox
+- Health checks
 - JWT Bearer authentication
 - xUnit
 - FluentAssertions
@@ -61,6 +71,12 @@ These features are intentionally outside the MVP and can be added later as produ
 The solution is split into separate projects to keep HTTP, application logic, domain rules, and infrastructure concerns isolated.
 
 ```text
+NotificationWorker
+  RabbitMQ consumer that processes ticket events and writes notification logs
+
+RabbitMQ
+  Message broker for asynchronous ticket events
+
 SupportDesk.Api
   HTTP API, controllers, authentication, authorization, Swagger, dependency injection
 
@@ -91,6 +107,11 @@ flowchart LR
     Application --> Infrastructure[SupportDesk.Infrastructure]
     Infrastructure --> Db[(PostgreSQL)]
 
+    Infrastructure --> Outbox[(Outbox messages)]
+    Outbox --> Processor[OutboxProcessorBackgroundService]
+    Processor --> RabbitMQ[(RabbitMQ)]
+    RabbitMQ --> Worker[NotificationWorker]
+
     IntegrationTests[Integration tests] --> Api
     IntegrationTests --> Testcontainers[(PostgreSQL Testcontainer)]
 ```
@@ -113,6 +134,14 @@ stateDiagram-v2
 ```
 
 Business rules are enforced by the domain model and application layer. A ticket status cannot be changed by assigning the `Status` property directly from the outside.
+
+## Messaging and outbox
+
+Ticket status changes create outbox messages in the same database transaction as the ticket update and history record.
+
+The background outbox processor reads pending messages and publishes them to RabbitMQ. NotificationWorker consumes ticket events from the queue and logs notification handling.
+
+This keeps the API independent from the notification consumer. If NotificationWorker is stopped, messages remain in RabbitMQ until the consumer is available again.
 
 ## Roles
 
@@ -175,6 +204,28 @@ Authorization: Bearer <access_token>
 
 The list endpoint applies filtering, sorting, and pagination at the database query level. It does not load all tickets into memory before filtering.
 
+## Health checks
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/health/live` | Checks that the API process is alive |
+| `/health/ready` | Checks that the API is ready to handle traffic and dependencies are available |
+
+Readiness checks include:
+
+- PostgreSQL
+- RabbitMQ
+
+Check liveness:
+```powershell
+curl.exe -i http://localhost:5042/health/live
+```
+
+Check readiness:
+```powershell
+curl.exe -i http://localhost:5042/health/ready
+```
+
 ## Requirements
 
 - .NET SDK compatible with the project
@@ -184,15 +235,18 @@ The list endpoint applies filtering, sorting, and pagination at the database que
 
 Docker must be running for both local PostgreSQL and integration tests with Testcontainers.
 
-## Run locally
+## Run locally:
 
 <img width="891" height="330" alt="run" src="https://github.com/user-attachments/assets/d7d20a2d-49d1-4f23-8ee9-097af1c125ec" />
 
-Start PostgreSQL through Docker Compose:
+Start local infrastructure through Docker Compose:
 
 ```bash
 docker compose up -d
 ```
+This starts:
+- PostgreSQL
+- RabbitMQ
 
 Apply EF Core migrations:
 
@@ -204,6 +258,12 @@ Run the API:
 
 ```powershell
 dotnet run --project .\SupportDesk.Api\SupportDesk.Api.csproj
+```
+
+Run the NotificationWorker:
+
+```powershell
+dotnet run --project .\NotificationWorker\NotificationWorker.csproj
 ```
 
 Open Swagger:
@@ -278,11 +338,11 @@ Content-Type: application/json
 
 ## Suggested demo flow
 
-The MVP can be demonstrated without a frontend.
+The project can be demonstrated without a frontend.
 
 Recommended flow:
 
-1. Start PostgreSQL with Docker Compose.
+1. Start PostgreSQL and RabbitMQ with Docker Compose.
 2. Apply EF Core migrations.
 3. Run the API.
 4. Open Swagger.
@@ -297,6 +357,14 @@ Recommended flow:
 13. Close the resolved ticket.
 14. Open ticket history.
 15. Run `dotnet test` and show that integration tests pass with Testcontainers.
+16. Verify that outbox messages are created.
+17. Run NotificationWorker.
+18. Trigger ticket status changes.
+19. Check API logs for outbox processing.
+20. Check NotificationWorker logs for consumed ticket events.
+21. Check `/health/live`.
+22. Check `/health/ready`.
+23. Stop RabbitMQ and verify that `/health/ready` returns `503 Service Unavailable`.
 
 ## Current limitations
 
@@ -304,27 +372,21 @@ Recommended flow:
 - There is no registration flow.
 - There is no frontend.
 - There are no real notifications.
-- There is no distributed messaging in the MVP.
-- There is no Redis cache in the MVP.
-- There is no gRPC service in the MVP.
-- There are no production metrics in the MVP.
+- There is no Redis cache yet.
+- There is no gRPC service yet.
+- There are no Prometheus-compatible production metrics yet.
 
-These limitations are deliberate. The MVP focuses on a complete backend flow, database persistence, authorization, and automated testing.
+These limitations are deliberate. The current version focuses on a complete backend flow, database persistence, authorization, outbox-based messaging, RabbitMQ integration, health checks, and automated testing.
 
 ## Roadmap
 
 Planned production-oriented extensions:
 
-- Transactional outbox
-- Background worker for outbox processing
-- RabbitMQ publisher and consumer
-- Structured logging
-- Correlation id middleware
-- Readiness and liveness health checks
 - gRPC UserDirectory service
 - Redis cache for ticket statistics
 - Prometheus-compatible metrics
 - k6 load test scenario
+- SQL performance notes
 
 ## What this project demonstrates
 
@@ -337,4 +399,4 @@ This project is designed to show backend engineering fundamentals:
 - Protecting endpoints with JWT authentication and role-based authorization
 - Testing real HTTP behavior with WebApplicationFactory
 - Running integration tests against real PostgreSQL through Testcontainers
-- Keeping the MVP focused instead of adding distributed-system components too early
+- Evolving an MVP backend into a production-oriented service step by step
